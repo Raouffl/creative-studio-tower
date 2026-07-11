@@ -6,9 +6,6 @@ import { prisma } from "@/lib/prisma";
 
 export const { handlers, auth, signIn, signOut } = NextAuth({
   ...authConfig,
-  // Credentials-based sign-in requires the JWT session strategy (there is no
-  // database session table).
-  session: { strategy: "jwt" },
   providers: [
     Credentials({
       credentials: {
@@ -28,19 +25,13 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         const ok = await bcrypt.compare(password, user.passwordHash);
         if (!ok) return null;
 
-        return { id: user.id, email: user.email, name: user.name };
+        return {
+          id: user.id,
+          email: user.email,
+          name: user.name,
+          role: user.role,
+        };
       },
     }),
   ],
-  callbacks: {
-    ...authConfig.callbacks,
-    jwt({ token, user }) {
-      if (user) token.id = user.id;
-      return token;
-    },
-    session({ session, token }) {
-      if (token.id) session.user.id = token.id as string;
-      return session;
-    },
-  },
 });

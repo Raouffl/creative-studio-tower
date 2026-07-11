@@ -2,7 +2,16 @@
 
 import { useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { ExternalLink, LogOut, Minus, Plus, RefreshCw } from "lucide-react";
+import { useSession } from "next-auth/react";
+import {
+  ExternalLink,
+  LogOut,
+  Minus,
+  Plus,
+  RefreshCw,
+  Shield,
+  UserCog,
+} from "lucide-react";
 import { refreshBoard, signOutAction } from "@/app/actions";
 import type { Bucket, TaskWithRevisions } from "@/lib/types";
 import {
@@ -38,6 +47,8 @@ export function Board({
   now: number;
 }) {
   const router = useRouter();
+  const { data: session } = useSession();
+  const isAdmin = session?.user?.role === "ADMIN";
   const [isRefreshing, startRefresh] = useTransition();
   const [revisions, setRevisions] = useState<Record<string, number>>(() =>
     Object.fromEntries(tasks.map((t) => [t.id, t.revisions])),
@@ -124,6 +135,24 @@ export function Board({
               className={cn("size-3.5", isRefreshing && "animate-spin")}
             />
             {isRefreshing ? "Refreshing…" : "Refresh"}
+          </Button>
+          {isAdmin && (
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => router.push("/admin/users")}
+            >
+              <Shield className="size-3.5" />
+              Admin
+            </Button>
+          )}
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => router.push("/account")}
+          >
+            <UserCog className="size-3.5" />
+            Account
           </Button>
           <form action={signOutAction}>
             <Button variant="ghost" size="sm" type="submit">

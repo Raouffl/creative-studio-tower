@@ -18,13 +18,20 @@ model Revision {
   updatedAt DateTime @updatedAt
 }
 
+enum Role {
+  ADMIN
+  USER
+}
+
 /// Dashboard login accounts. Credentials are validated in `src/auth.ts`
-/// (Auth.js Credentials provider) against `passwordHash` (bcrypt). There is no
-/// signup UI — create accounts with `scripts/create-user.ts`.
+/// (Auth.js Credentials provider) against `passwordHash` (bcrypt). ADMINs can
+/// create accounts at /admin/users; the first admin is seeded with
+/// `scripts/create-user.ts` (or raw SQL).
 model User {
   id           String   @id @default(cuid())
   email        String   @unique
   name         String?
   passwordHash String
+  role         Role     @default(USER)
   createdAt    DateTime @default(now())
 }

@@ -52,12 +52,18 @@ before running the app or Prisma migrations.**
 - `src/components/board.tsx` — **client component**, all interactivity: filter,
   sort, optimistic revisions `+/−`, refresh + sign-out buttons. UI text lives here.
 - **Auth (Auth.js v5 / Credentials).** `src/auth.config.ts` is the edge-safe
-  config (no providers/Prisma/bcrypt) imported by `src/proxy.ts` — its
-  `authorized` callback gates every request. `src/auth.ts` adds the Credentials
-  provider (bcrypt-compares against the `User` table) and JWT/session callbacks.
-  `src/app/api/auth/[...nextauth]/route.ts` re-exports the handlers; `src/app/login`
-  is the sign-in form + server action. `scripts/create-user.ts` seeds accounts
-  (no signup UI). Session strategy is **JWT** (Credentials requires it).
+  config (no providers/Prisma/bcrypt) imported by `src/proxy.ts` — it holds the
+  `authorized` gate **and** the JWT/session callbacks (both pure, so the proxy
+  can read `user.role`). `src/auth.ts` only adds the Credentials provider
+  (bcrypt-compares against the `User` table). `src/app/api/auth/[...nextauth]/route.ts`
+  re-exports the handlers; `src/app/login` is the sign-in form + server action.
+  Session strategy is **JWT** (Credentials requires it).
+- **Roles + self-service.** `User.role` is `ADMIN | USER` (enum, default `USER`,
+  carried in the JWT/session). `/account` lets any user change their password;
+  `/admin/users` (ADMIN-only) lists accounts and creates new ones. The board
+  reads the role client-side via `useSession` (`AuthProvider` wraps the app in
+  `layout.tsx`) so the board page stays statically prerendered. Seed the first
+  admin with `scripts/create-user.ts` (or SQL); after that admins use the UI.
 
 ## Conventions & gotchas
 
@@ -83,6 +89,12 @@ before running the app or Prisma migrations.**
   protects the board *and* `/api/revisions` while excluding `/api/auth`.
 - **`trustHost: true` is set in `auth.config.ts`** — without it Auth.js throws
   `UntrustedHost` on any non-Vercel host (incl. `pnpm start` locally).
+- **The `/admin` proxy gate is not enough** — always re-check `role === "ADMIN"`
+  inside admin server actions/pages (`auth()`), since the proxy matcher can be
+  bypassed and mutations must never trust routing alone.
+- **The `next-auth/jwt` module augmentation doesn't narrow the `token` param**
+  in callbacks (v5 quirk) — cast `token.id`/`token.role` when assigning to the
+  session. The `next-auth` (Session/User) augmentation works normally.
 - **`AUTH_SECRET` must be set** or Auth.js fails to sign sessions. Keep it stable
   across restarts, or every existing session cookie is invalidated.
 - **`scripts/create-user.ts` runs via `tsx`** (`pnpm user:create`), not Node
