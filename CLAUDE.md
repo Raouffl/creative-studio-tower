@@ -13,7 +13,7 @@ can't store natively.
 
 ```bash
 pnpm dev                     # dev server (Turbopack)
-pnpm build                   # production build (also runs full type-check)
+pnpm build                   # prisma migrate deploy + production build (full type-check)
 pnpm start                   # serve the production build
 pnpm lint                    # eslint
 
