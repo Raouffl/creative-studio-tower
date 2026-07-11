@@ -1,0 +1,19 @@
+// Prisma schema — Creative Studio Tower
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "sqlite"
+}
+
+/// Manual "revisions" (PM revision) counter per ClickUp task.
+/// ClickUp doesn't natively track this on the current plan, so we persist it here.
+model Revision {
+  taskId    String   @id
+  count     Int      @default(0)
+  updatedAt DateTime @updatedAt
+}
