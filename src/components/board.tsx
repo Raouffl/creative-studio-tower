@@ -349,7 +349,7 @@ function Footnote() {
       completed tasks, it runs from creation to close when the creation date is
       provided, otherwise the close date is shown. The{" "}
       <b className="text-foreground">&ldquo;revisions&rdquo;</b> counter is a
-      manual, editable (+/−) counter saved server-side (SQLite via Prisma) —
+      manual, editable (+/−) counter saved server-side (Postgres via Prisma) —
       increment it each time a PM sends a task back.
     </div>
   );

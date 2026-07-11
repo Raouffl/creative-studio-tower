@@ -7,7 +7,7 @@ counter per task (how many times a PM sent work back) that ClickUp can't store
 natively.
 
 Built with **Next.js 16** (App Router), **Tailwind CSS 4**, **shadcn/ui**, and
-**Prisma + SQLite** for the revisions counter.
+**Prisma + Postgres** for the revisions counter.
 
 ## Stack
 
@@ -16,7 +16,7 @@ Built with **Next.js 16** (App Router), **Tailwind CSS 4**, **shadcn/ui**, and
 | Framework           | Next.js 16 (App Router, React 19, Turbopack)    |
 | UI                  | Tailwind CSS 4 + shadcn/ui (Radix, Nova preset) |
 | ClickUp data        | Server fetch, cached 60s, tag-revalidated       |
-| Revisions storage   | Prisma ORM → local SQLite file                  |
+| Revisions storage   | Prisma ORM → Postgres (Docker Compose in dev)   |
 
 ## Setup
 
@@ -36,12 +36,13 @@ Built with **Next.js 16** (App Router), **Tailwind CSS 4**, **shadcn/ui**, and
      Token, starts with `pk_`).
    - `CLICKUP_LIST_ID` — defaults to the Creative Studio Projects list
      (`901517838163`).
-   - `DATABASE_URL` — absolute `file:` path to `prisma/dev.db` (absolute avoids
-     a Prisma/SQLite relative-path gotcha between the CLI and the runtime).
+   - `DATABASE_URL` — Postgres connection string. The default matches the local
+     Postgres in `docker-compose.dev.yaml`.
 
-3. **Set up the database**
+3. **Start Postgres and apply migrations**
 
    ```bash
+   docker compose -f docker-compose.dev.yaml up -d
    pnpm prisma migrate dev
    ```
 
@@ -58,11 +59,11 @@ Built with **Next.js 16** (App Router), **Tailwind CSS 4**, **shadcn/ui**, and
 - `src/lib/clickup.ts` — fetches all tasks (open + closed, paginated) from the
   list and normalizes them. Responses are cached for 60s under the
   `clickup-tasks` tag.
-- The **Actualiser** button calls a server action that `revalidateTag`s that
-  cache, then refreshes the route.
+- The **Refresh** button calls a server action that `revalidatePath`s the board,
+  then refreshes the route.
 - `src/lib/status.ts` — buckets each task into a column by its ClickUp status and
   computes elapsed-time labels.
-- Revisions live in SQLite via Prisma (`src/lib/revisions.ts`). The `+/−`
+- Revisions live in Postgres via Prisma (`src/lib/revisions.ts`). The `+/−`
   controls optimistically update the UI and `POST /api/revisions` to persist.
 
 ## Notes on the numbers
