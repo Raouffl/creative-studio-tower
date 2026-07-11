@@ -2,8 +2,8 @@
 
 import { useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { ExternalLink, Minus, Plus, RefreshCw } from "lucide-react";
-import { refreshBoard } from "@/app/actions";
+import { ExternalLink, LogOut, Minus, Plus, RefreshCw } from "lucide-react";
+import { refreshBoard, signOutAction } from "@/app/actions";
 import type { Bucket, TaskWithRevisions } from "@/lib/types";
 import {
   bucketOf,
@@ -113,17 +113,25 @@ export function Board({
             connected live to ClickUp
           </p>
         </div>
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={onRefresh}
-          disabled={isRefreshing}
-        >
-          <RefreshCw
-            className={cn("size-3.5", isRefreshing && "animate-spin")}
-          />
-          {isRefreshing ? "Refreshing…" : "Refresh"}
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={onRefresh}
+            disabled={isRefreshing}
+          >
+            <RefreshCw
+              className={cn("size-3.5", isRefreshing && "animate-spin")}
+            />
+            {isRefreshing ? "Refreshing…" : "Refresh"}
+          </Button>
+          <form action={signOutAction}>
+            <Button variant="ghost" size="sm" type="submit">
+              <LogOut className="size-3.5" />
+              Sign out
+            </Button>
+          </form>
+        </div>
       </header>
 
       <div className="flex flex-wrap gap-2.5 px-8 pt-4">

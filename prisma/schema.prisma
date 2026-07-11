@@ -17,3 +17,14 @@ model Revision {
   count     Int      @default(0)
   updatedAt DateTime @updatedAt
 }
+
+/// Dashboard login accounts. Credentials are validated in `src/auth.ts`
+/// (Auth.js Credentials provider) against `passwordHash` (bcrypt). There is no
+/// signup UI — create accounts with `scripts/create-user.ts`.
+model User {
+  id           String   @id @default(cuid())
+  email        String   @unique
+  name         String?
+  passwordHash String
+  createdAt    DateTime @default(now())
+}

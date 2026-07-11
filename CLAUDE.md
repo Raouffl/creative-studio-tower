@@ -20,7 +20,9 @@ pnpm lint                    # eslint
 pnpm prisma migrate dev      # create + apply a migration (interactive)
 pnpm prisma migrate deploy   # apply pending migrations (non-interactive / fresh clone)
 pnpm prisma generate         # regenerate the client (also runs on postinstall)
-pnpm prisma studio           # inspect the Revision table
+pnpm prisma studio           # inspect the Revision / User tables
+
+pnpm user:create <email> <password> [name]   # create/update a login account
 
 docker compose -f docker-compose.dev.yaml up -d     # start local Postgres
 docker compose -f docker-compose.dev.yaml down      # stop (keeps data)
@@ -29,7 +31,8 @@ docker compose -f docker-compose.dev.yaml down -v   # stop + wipe data
 
 Environment (`.env`, gitignored — copy from `.env.example`):
 `CLICKUP_TOKEN`, `CLICKUP_LIST_ID` (default `901517838163`), `DATABASE_URL`
-(Postgres; the default matches `docker-compose.dev.yaml`). **Start Postgres
+(Postgres; the default matches `docker-compose.dev.yaml`), `AUTH_SECRET`
+(sign session JWTs — generate with `npx auth secret`). **Start Postgres
 before running the app or Prisma migrations.**
 
 ## Architecture / data flow
@@ -45,9 +48,16 @@ before running the app or Prisma migrations.**
 - `src/lib/revisions.ts` + `src/app/api/revisions/route.ts` — read/upsert the
   revisions counter via Prisma. The board optimistically updates and
   `POST /api/revisions` persists.
-- `src/app/actions.ts` — `refreshBoard` server action; `revalidatePath("/")`.
+- `src/app/actions.ts` — `refreshBoard` + `signOutAction` server actions.
 - `src/components/board.tsx` — **client component**, all interactivity: filter,
-  sort, optimistic revisions `+/−`, refresh button. UI text lives here.
+  sort, optimistic revisions `+/−`, refresh + sign-out buttons. UI text lives here.
+- **Auth (Auth.js v5 / Credentials).** `src/auth.config.ts` is the edge-safe
+  config (no providers/Prisma/bcrypt) imported by `src/proxy.ts` — its
+  `authorized` callback gates every request. `src/auth.ts` adds the Credentials
+  provider (bcrypt-compares against the `User` table) and JWT/session callbacks.
+  `src/app/api/auth/[...nextauth]/route.ts` re-exports the handlers; `src/app/login`
+  is the sign-in form + server action. `scripts/create-user.ts` seeds accounts
+  (no signup UI). Session strategy is **JWT** (Credentials requires it).
 
 ## Conventions & gotchas
 
@@ -65,6 +75,20 @@ before running the app or Prisma migrations.**
   provider-mismatch (e.g. "adapter-pg is not compatible with provider sqlite").
 - **Next 16:** `revalidateTag` now takes a required second arg (cache profile).
   We use `revalidatePath` instead — keep that in mind before reaching for tags.
+- **Auth request-gating lives in `src/proxy.ts`** (Next 16 renamed the
+  `middleware` convention to `proxy` — the old filename builds with a warning,
+  and Next only recognizes a **default** function export, not a destructured
+  `export const { auth: middleware }`). It's compiled at server **startup**, so
+  restart `pnpm dev` after touching it — HMR won't reload it. Its `matcher`
+  protects the board *and* `/api/revisions` while excluding `/api/auth`.
+- **`trustHost: true` is set in `auth.config.ts`** — without it Auth.js throws
+  `UntrustedHost` on any non-Vercel host (incl. `pnpm start` locally).
+- **`AUTH_SECRET` must be set** or Auth.js fails to sign sessions. Keep it stable
+  across restarts, or every existing session cookie is invalidated.
+- **`scripts/create-user.ts` runs via `tsx`** (`pnpm user:create`), not Node
+  directly: the generated Prisma client uses extensionless ESM imports that
+  Node's native resolver can't follow. `esbuild` (pulled in by `tsx`) is
+  allow-listed in `pnpm-workspace.yaml`.
 - **The page statically prerenders with 1-minute ISR** + on-demand refresh (the
   "server fetch + revalidate" choice). Data (and the `now` timestamp) refreshes
   every ~60s or when the refresh button revalidates the path.
