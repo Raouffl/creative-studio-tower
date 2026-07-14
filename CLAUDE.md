@@ -24,8 +24,8 @@ pnpm prisma studio           # inspect the Revision / User tables
 
 pnpm user:create <email> <password> [name]   # create/update a login account
 
-docker compose -f docker-compose.dev.yaml up -d     # start local Postgres
-docker compose -f docker-compose.dev.yaml down      # stop (keeps data)
+pnpm db:up                   # start local Postgres (docker compose up -d)
+pnpm db:down                 # stop local Postgres (keeps data)
 docker compose -f docker-compose.dev.yaml down -v   # stop + wipe data
 ```
 
