@@ -444,7 +444,7 @@ function LinkButton({
       title={label}
       aria-label={label}
       onClick={(e) => e.stopPropagation()}
-      className="flex size-[22px] items-center justify-center rounded border border-border bg-background text-muted-foreground transition-colors hover:border-progress hover:text-foreground"
+      className="flex size-[22px] items-center justify-center transition-[transform,filter] duration-200 hover:scale-110 hover:drop-shadow-[0_0_5px_rgba(255,255,255,0.6)]"
     >
       {children}
     </a>
