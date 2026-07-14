@@ -4,6 +4,8 @@ import { useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
 import {
+  ArrowDownWideNarrow,
+  ArrowUpNarrowWide,
   ExternalLink,
   LogOut,
   Minus,
@@ -32,6 +34,7 @@ import {
 import { cn } from "@/lib/utils";
 
 type SortKey = "oldest" | "revisions" | "name";
+type SortDir = "asc" | "desc";
 
 const COLUMN_ACCENT: Record<Bucket, string> = {
   progress: "text-progress",
@@ -55,6 +58,7 @@ export function Board({
   );
   const [assignee, setAssignee] = useState<string>("all");
   const [sort, setSort] = useState<SortKey>("oldest");
+  const [dir, setDir] = useState<SortDir>("asc");
 
   const assignees = useMemo(() => {
     const set = new Set<string>();
@@ -66,12 +70,19 @@ export function Board({
     const filtered = tasks.filter(
       (t) => assignee === "all" || t.assignees.includes(assignee),
     );
+    const factor = dir === "asc" ? 1 : -1;
     const sorted = [...filtered].sort((a, b) => {
-      if (sort === "revisions") return (revisions[b.id] ?? 0) - (revisions[a.id] ?? 0);
-      if (sort === "name") return a.name.localeCompare(b.name);
-      const ea = a.created ?? a.closed ?? 0;
-      const eb = b.created ?? b.closed ?? 0;
-      return ea - eb; // oldest / longest first
+      let cmp: number;
+      if (sort === "revisions") {
+        cmp = (revisions[a.id] ?? 0) - (revisions[b.id] ?? 0);
+      } else if (sort === "name") {
+        cmp = a.name.localeCompare(b.name);
+      } else {
+        const ea = a.created ?? a.closed ?? 0;
+        const eb = b.created ?? b.closed ?? 0;
+        cmp = ea - eb; // ascending = oldest / longest first
+      }
+      return cmp * factor;
     });
     const cols: Record<Bucket, TaskWithRevisions[]> = {
       progress: [],
@@ -80,7 +91,7 @@ export function Board({
     };
     sorted.forEach((t) => cols[bucketOf(t)].push(t));
     return cols;
-  }, [tasks, assignee, sort, revisions]);
+  }, [tasks, assignee, sort, dir, revisions]);
 
   const totals = useMemo(() => {
     const done = tasks.filter((t) => bucketOf(t) === "done").length;
@@ -179,15 +190,30 @@ export function Board({
         </Select>
 
         <Select value={sort} onValueChange={(v) => setSort(v as SortKey)}>
-          <SelectTrigger className="w-64" size="sm">
+          <SelectTrigger className="w-56" size="sm">
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="oldest">Sort: oldest / longest</SelectItem>
-            <SelectItem value="revisions">Sort: most revisions</SelectItem>
+            <SelectItem value="oldest">Sort: age / elapsed</SelectItem>
+            <SelectItem value="revisions">Sort: revisions</SelectItem>
             <SelectItem value="name">Sort: name</SelectItem>
           </SelectContent>
         </Select>
+
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => setDir((d) => (d === "asc" ? "desc" : "asc"))}
+          aria-label={`Sort direction: ${dir === "asc" ? "ascending" : "descending"}`}
+          title={dir === "asc" ? "Ascending" : "Descending"}
+        >
+          {dir === "asc" ? (
+            <ArrowUpNarrowWide className="size-4" />
+          ) : (
+            <ArrowDownWideNarrow className="size-4" />
+          )}
+          {dir === "asc" ? "Asc" : "Desc"}
+        </Button>
       </div>
 
       <div className="grid grid-cols-1 gap-5 px-8 pb-14 pt-4 lg:grid-cols-3">
