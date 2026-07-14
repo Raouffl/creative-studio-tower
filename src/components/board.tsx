@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState, useTransition } from "react";
+import { useMemo, useState, useTransition, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
 import {
@@ -359,7 +359,17 @@ function TaskCard({
       </div>
 
       <div className="mt-2 flex items-center justify-between text-[11px]">
-        <div>
+        <div className="flex items-center gap-1.5">
+          {task.figma ? (
+            <LinkButton href={task.figma} label="Open Figma">
+              <FigmaIcon className="size-3.5" />
+            </LinkButton>
+          ) : null}
+          {task.drive ? (
+            <LinkButton href={task.drive} label="Open Drive folder">
+              <GoogleDriveIcon className="size-3.5" />
+            </LinkButton>
+          ) : null}
           {badge ? (
             <Badge
               className={cn(
@@ -399,6 +409,57 @@ function TaskCard({
         </div>
       </div>
     </div>
+  );
+}
+
+function LinkButton({
+  href,
+  label,
+  children,
+}: {
+  href: string;
+  label: string;
+  children: ReactNode;
+}) {
+  return (
+    <a
+      href={href}
+      target="_blank"
+      rel="noopener noreferrer"
+      title={label}
+      aria-label={label}
+      onClick={(e) => e.stopPropagation()}
+      className="flex size-[22px] items-center justify-center rounded border border-border bg-background text-muted-foreground transition-colors hover:border-progress hover:text-foreground"
+    >
+      {children}
+    </a>
+  );
+}
+
+/** Figma brand mark (lucide dropped its brand icons). */
+function FigmaIcon({ className }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 38 57" className={className} aria-hidden="true">
+      <path fill="#1abcfe" d="M19 28.5a9.5 9.5 0 1 1 19 0 9.5 9.5 0 0 1-19 0z" />
+      <path fill="#0acf83" d="M0 47.5A9.5 9.5 0 0 1 9.5 38H19v9.5a9.5 9.5 0 1 1-19 0z" />
+      <path fill="#ff7262" d="M19 0v19h9.5a9.5 9.5 0 1 0 0-19H19z" />
+      <path fill="#f24e1e" d="M0 9.5A9.5 9.5 0 0 0 9.5 19H19V0H9.5A9.5 9.5 0 0 0 0 9.5z" />
+      <path fill="#a259ff" d="M0 28.5A9.5 9.5 0 0 0 9.5 38H19V19H9.5A9.5 9.5 0 0 0 0 28.5z" />
+    </svg>
+  );
+}
+
+/** Google Drive brand mark. */
+function GoogleDriveIcon({ className }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 87.3 78" className={className} aria-hidden="true">
+      <path fill="#0066da" d="m6.6 66.85 3.85 6.65c.8 1.4 1.95 2.5 3.3 3.3l13.75-23.8h-27.5c0 1.55.4 3.1 1.2 4.5z" />
+      <path fill="#00ac47" d="m43.65 25-13.75-23.8c-1.35.8-2.5 1.9-3.3 3.3l-25.4 44a9.06 9.06 0 0 0 -1.2 4.5h27.5z" />
+      <path fill="#ea4335" d="m73.55 76.8c1.35-.8 2.5-1.9 3.3-3.3l1.6-2.75 7.65-13.25c.8-1.4 1.2-2.95 1.2-4.5h-27.502l5.852 11.5z" />
+      <path fill="#00832d" d="m43.65 25 13.75-23.8c-1.35-.8-2.9-1.2-4.5-1.2h-18.5c-1.6 0-3.15.45-4.5 1.2z" />
+      <path fill="#2684fc" d="m59.8 53h-32.3l-13.75 23.8c1.35.8 2.9 1.2 4.5 1.2h50.8c1.6 0 3.15-.45 4.5-1.2z" />
+      <path fill="#ffba00" d="m73.4 26.5-12.7-22c-.8-1.4-1.95-2.5-3.3-3.3l-13.75 23.8 16.15 28h27.45c0-1.55-.4-3.1-1.2-4.5z" />
+    </svg>
   );
 }
 

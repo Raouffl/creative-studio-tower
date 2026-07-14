@@ -4,6 +4,10 @@ import type { Task } from "./types";
 const BASE = "https://api.clickup.com/api/v2";
 export const CLICKUP_TASKS_TAG = "clickup-tasks";
 
+/** Custom-field IDs on the Projects list (see `GET /list/{id}/field`). */
+const FIELD_FIGMA = "54eac644-56d6-4ab4-8369-ab5014165175";
+const FIELD_DRIVE = "21f40352-0790-4539-be34-08da602f4396";
+
 /** Thrown when the ClickUp integration is misconfigured or the API rejects us. */
 export class ClickUpError extends Error {
   constructor(
@@ -25,6 +29,13 @@ interface RawClickUpTask {
   date_created?: string | null;
   date_closed?: string | null;
   date_done?: string | null;
+  custom_fields?: { id: string; value?: unknown }[];
+}
+
+/** Read a URL-type custom field, returning null when unset/blank. */
+function urlField(t: RawClickUpTask, fieldId: string): string | null {
+  const value = t.custom_fields?.find((f) => f.id === fieldId)?.value;
+  return typeof value === "string" && value.trim() ? value : null;
 }
 
 interface RawTaskPage {
@@ -46,6 +57,8 @@ function mapTask(t: RawClickUpTask): Task {
     created: t.date_created ? Number(t.date_created) : null,
     closed: closed ? Number(closed) : null,
     url: t.url,
+    figma: urlField(t, FIELD_FIGMA),
+    drive: urlField(t, FIELD_DRIVE),
   };
 }
 

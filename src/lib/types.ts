@@ -18,6 +18,10 @@ export interface Task {
   closed: number | null;
   /** Deep link back into ClickUp. */
   url: string;
+  /** Figma link from the ClickUp "Figma" custom field, or null when unset. */
+  figma: string | null;
+  /** Assets link from the ClickUp "Drive Folder" custom field, or null when unset. */
+  drive: string | null;
 }
 
 /** Task enriched with its manual revisions count. */
