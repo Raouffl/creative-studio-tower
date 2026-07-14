@@ -64,7 +64,11 @@ before running the app or Prisma migrations.**
   Session strategy is **JWT** (Credentials requires it).
 - **Roles + self-service.** `User.role` is `ADMIN | USER` (enum, default `USER`,
   carried in the JWT/session). `/account` lets any user change their password;
-  `/admin/users` (ADMIN-only) lists accounts and creates new ones. The board
+  `/admin/users` (ADMIN-only) lists accounts, creates new ones, and edits
+  existing ones (email/name/role, password reset, delete — via server actions in
+  `admin/users/actions.ts`, rendered by the client `users-table.tsx`). Guards:
+  admins can't delete their own account or demote/delete the last remaining
+  admin. The board
   reads the role client-side via `useSession` (`AuthProvider` wraps the app in
   `layout.tsx`) so the board page stays statically prerendered. Seed the first
   admin with `scripts/create-user.ts` (or SQL); after that admins use the UI.
