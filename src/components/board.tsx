@@ -52,6 +52,7 @@ export function Board({
   const router = useRouter();
   const { data: session } = useSession();
   const isAdmin = session?.user?.role === "ADMIN";
+  const myEmail = session?.user?.email?.trim().toLowerCase() ?? null;
   const [isRefreshing, startRefresh] = useTransition();
   const [revisions, setRevisions] = useState<Record<string, number>>(() =>
     Object.fromEntries(tasks.map((t) => [t.id, t.revisions])),
@@ -245,6 +246,10 @@ export function Board({
                   revisions={revisions[t.id] ?? 0}
                   now={now}
                   onBump={bump}
+                  canEdit={
+                    isAdmin ||
+                    (!!myEmail && t.assigneeEmails.includes(myEmail))
+                  }
                 />
               ))
             )}
@@ -302,11 +307,13 @@ function TaskCard({
   revisions,
   now,
   onBump,
+  canEdit,
 }: {
   task: TaskWithRevisions;
   revisions: number;
   now: number;
   onBump: (id: string, dir: 1 | -1) => void;
+  canEdit: boolean;
 }) {
   const info = elapsedInfo(task, now);
   const flagged = task.status.toLowerCase() === "waiting for pm feedback";
@@ -385,8 +392,12 @@ function TaskCard({
           <span className="text-muted-foreground">revisions</span>
           <button
             onClick={() => onBump(task.id, -1)}
+            disabled={!canEdit}
             aria-label="Decrease revisions"
-            className="flex size-[18px] items-center justify-center rounded border border-border bg-background text-muted-foreground hover:border-progress hover:text-foreground"
+            title={
+              canEdit ? undefined : "Only assignees can edit revisions"
+            }
+            className="flex size-[18px] items-center justify-center rounded border border-border bg-background text-muted-foreground hover:border-progress hover:text-foreground disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:border-border disabled:hover:text-muted-foreground"
           >
             <Minus className="size-3" />
           </button>
@@ -401,8 +412,12 @@ function TaskCard({
           </span>
           <button
             onClick={() => onBump(task.id, 1)}
+            disabled={!canEdit}
             aria-label="Increase revisions"
-            className="flex size-[18px] items-center justify-center rounded border border-border bg-background text-muted-foreground hover:border-progress hover:text-foreground"
+            title={
+              canEdit ? undefined : "Only assignees can edit revisions"
+            }
+            className="flex size-[18px] items-center justify-center rounded border border-border bg-background text-muted-foreground hover:border-progress hover:text-foreground disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:border-border disabled:hover:text-muted-foreground"
           >
             <Plus className="size-3" />
           </button>

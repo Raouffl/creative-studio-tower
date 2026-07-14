@@ -12,6 +12,8 @@ export interface Task {
   statusColor: string;
   /** Display names of assignees. */
   assignees: string[];
+  /** Lowercased emails of assignees (for matching the logged-in user). */
+  assigneeEmails: string[];
   /** Epoch ms of creation, or null when unavailable. */
   created: number | null;
   /** Epoch ms of close/done, or null when still active. */

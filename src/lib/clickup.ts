@@ -54,6 +54,9 @@ function mapTask(t: RawClickUpTask): Task {
     assignees: (t.assignees ?? [])
       .map((a) => a.username || a.email || "")
       .filter(Boolean),
+    assigneeEmails: (t.assignees ?? [])
+      .map((a) => a.email?.trim().toLowerCase() ?? "")
+      .filter(Boolean),
     created: t.date_created ? Number(t.date_created) : null,
     closed: closed ? Number(closed) : null,
     url: t.url,

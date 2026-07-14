@@ -47,7 +47,11 @@ before running the app or Prisma migrations.**
   labels, initials, date formatting. **Column titles live here.**
 - `src/lib/revisions.ts` + `src/app/api/revisions/route.ts` — read/upsert the
   revisions counter via Prisma. The board optimistically updates and
-  `POST /api/revisions` persists.
+  `POST /api/revisions` persists. **Only a task's assignees may edit its
+  revisions** (ADMINs bypass): the board disables the +/− buttons when the
+  session email isn't in `task.assigneeEmails`, and the route re-checks the same
+  rule server-side (matching `session.user.email` against the ClickUp assignee
+  emails from `fetchTasks`) — never trust the disabled button alone.
 - `src/app/actions.ts` — `refreshBoard` + `signOutAction` server actions.
 - `src/components/board.tsx` — **client component**, all interactivity: filter,
   sort, optimistic revisions `+/−`, refresh + sign-out buttons. UI text lives here.
