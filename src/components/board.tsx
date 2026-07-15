@@ -9,6 +9,7 @@ import {
   ExternalLink,
   LogOut,
   RefreshCw,
+  Search,
   Shield,
   UserCog,
 } from "lucide-react";
@@ -22,6 +23,7 @@ import {
 } from "@/lib/status";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import {
   Select,
   SelectContent,
@@ -56,6 +58,7 @@ export function Board({
     [tasks],
   );
   const [assignee, setAssignee] = useState<string>("all");
+  const [query, setQuery] = useState<string>("");
   const [sort, setSort] = useState<SortKey>("oldest");
   const [dir, setDir] = useState<SortDir>("asc");
 
@@ -66,8 +69,11 @@ export function Board({
   }, [tasks]);
 
   const columns = useMemo(() => {
+    const q = query.trim().toLowerCase();
     const filtered = tasks.filter(
-      (t) => assignee === "all" || t.assignees.includes(assignee),
+      (t) =>
+        (assignee === "all" || t.assignees.includes(assignee)) &&
+        (q === "" || t.name.toLowerCase().includes(q)),
     );
     const factor = dir === "asc" ? 1 : -1;
     const sorted = [...filtered].sort((a, b) => {
@@ -90,7 +96,7 @@ export function Board({
     };
     sorted.forEach((t) => cols[bucketOf(t)].push(t));
     return cols;
-  }, [tasks, assignee, sort, dir, revisions]);
+  }, [tasks, assignee, query, sort, dir, revisions]);
 
   const totals = useMemo(() => {
     const done = tasks.filter((t) => bucketOf(t) === "done").length;
@@ -162,7 +168,7 @@ export function Board({
         </div>
       </header>
 
-      <div className="flex flex-wrap gap-2.5 px-8 pt-4">
+      <div className="flex flex-wrap items-center gap-2.5 px-8 pt-4">
         <Select value={assignee} onValueChange={setAssignee}>
           <SelectTrigger className="w-56" size="sm">
             <SelectValue placeholder="All assignees" />
@@ -202,6 +208,18 @@ export function Board({
           )}
           {dir === "asc" ? "Asc" : "Desc"}
         </Button>
+
+        <div className="relative ml-auto w-full sm:w-64">
+          <Search className="pointer-events-none absolute left-2.5 top-1/2 size-3.5 -translate-y-1/2 text-muted-foreground" />
+          <Input
+            type="search"
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            placeholder="Search tasks…"
+            aria-label="Search tasks by name"
+            className="h-8 pl-8 text-[13px]"
+          />
+        </div>
       </div>
 
       <div className="grid grid-cols-1 gap-5 px-8 pb-14 pt-4 lg:grid-cols-3">
