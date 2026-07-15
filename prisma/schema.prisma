@@ -10,10 +10,15 @@ datasource db {
   provider = "postgresql"
 }
 
-/// Manual "revisions" (PM revision) counter per ClickUp task.
-/// ClickUp doesn't natively track this on the current plan, so we persist it here.
+/// Cached PM-"revisions" count per ClickUp task, derived from the task's Figma
+/// file: revisions = (number of "Version N" frames) − 1. Refreshed at most once
+/// an hour (see src/lib/revisions.ts) and re-derived whenever `figmaKey` (the
+/// task's current Figma file key) changes. A task with no Figma link has no row
+/// here, so the board renders its revisions as "N/A".
 model Revision {
   taskId    String   @id
+  /// Figma file key the cached count was computed from; null = never computed.
+  figmaKey  String?
   count     Int      @default(0)
   updatedAt DateTime @updatedAt
 }

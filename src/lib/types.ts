@@ -26,7 +26,9 @@ export interface Task {
   drive: string | null;
 }
 
-/** Task enriched with its manual revisions count. */
+/** Task enriched with its Figma-derived revisions count. */
 export interface TaskWithRevisions extends Task {
-  revisions: number;
+  /** Revisions (= Figma "Version N" frames − 1), or null when there's no
+   *  Figma link or the count hasn't been computed yet ("N/A" in the UI). */
+  revisions: number | null;
 }
