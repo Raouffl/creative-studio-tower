@@ -9,7 +9,7 @@ const { auth } = NextAuth(authConfig);
 export default auth;
 
 export const config = {
-  // Protect the board and /api/revisions. Exclude Auth.js's own routes,
-  // Next internals, and static files.
+  // Protect the board (and any future app routes). Exclude Auth.js's own
+  // routes, Next internals, and static files.
   matcher: ["/((?!api/auth|_next/static|_next/image|favicon.ico).*)"],
 };

@@ -5,9 +5,11 @@ Guidance for working in this repo. Read this before making changes.
 ## What this is
 
 A Next.js dashboard ("control tower") for the **Creative Studio → Projects**
-ClickUp list. It renders every task on a three-column board and tracks a manual
-per-task **revisions** counter (how many times a PM sent work back) that ClickUp
-can't store natively.
+ClickUp list. It renders every task on a three-column board and shows a per-task
+**revisions** count (how many times a PM sent work back) that ClickUp can't store
+natively. Revisions are **derived automatically from the task's Figma file** —
+the number of "Version N" frames minus one — cached in Postgres and refreshed at
+most hourly.
 
 ## Commands
 
@@ -30,7 +32,8 @@ docker compose -f docker-compose.dev.yaml down -v   # stop + wipe data
 ```
 
 Environment (`.env`, gitignored — copy from `.env.example`):
-`CLICKUP_TOKEN`, `CLICKUP_LIST_ID` (default `901517838163`), `DATABASE_URL`
+`CLICKUP_TOKEN`, `CLICKUP_LIST_ID` (default `901517838163`), `FIGMA_TOKEN`
+(personal access token, starts with `figd_`), `DATABASE_URL`
 (Postgres; the default matches `docker-compose.dev.yaml`), `AUTH_SECRET`
 (sign session JWTs — generate with `npx auth secret`). **Start Postgres
 before running the app or Prisma migrations.**
@@ -43,18 +46,29 @@ before running the app or Prisma migrations.**
 - `src/lib/clickup.ts` — paginated ClickUp fetch (open + closed), normalizes raw
   tasks to the `Task` type, throws typed `ClickUpError`. `fetch` is cached 60s
   under the `clickup-tasks` tag.
+- `src/lib/figma.ts` — Figma REST helpers, throws typed `FigmaError`.
+  `parseFileKey` extracts the file key from a `/file`, `/design`, or `/board`
+  URL; `countVersions(link)` fetches the file and counts FRAME nodes named
+  "Version <n>" (walks the whole tree). Reads `FIGMA_TOKEN` (starts with
+  `figd_`). Cached 60s.
 - `src/lib/status.ts` — pure helpers: `bucketOf` (status → column), elapsed-time
   labels, initials, date formatting. **Column titles live here.**
-- `src/lib/revisions.ts` + `src/app/api/revisions/route.ts` — read/upsert the
-  revisions counter via Prisma. The board optimistically updates and
-  `POST /api/revisions` persists. **Only a task's assignees may edit its
-  revisions** (ADMINs bypass): the board disables the +/− buttons when the
-  session email isn't in `task.assigneeEmails`, and the route re-checks the same
-  rule server-side (matching `session.user.email` against the ClickUp assignee
-  emails from `fetchTasks`) — never trust the disabled button alone.
+- `src/lib/revisions.ts` — the revisions cache layer. `getRevisionsMap(tasks)`
+  reads the cached count per task from Postgres and returns `taskId → count`
+  (tasks with no Figma link, or not yet computed, are absent → the board shows
+  "N/A"). It **serves the cached value immediately** and refreshes stale/missing
+  entries in the **background** via `after` (from `next/server`) — so a render is
+  never blocked on Figma. An entry is stale when its `figmaKey` changed or its
+  `updatedAt` is older than the 1h TTL. `refreshRevisions` recomputes
+  `max(0, countVersions(figma) − 1)` and upserts it, with `CONCURRENCY = 2`
+  (Figma rate-limits hard; 429s are caught and retried next revalidation). There
+  is **no manual edit path** — revisions are read-only, fully derived from Figma
+  (the old `POST /api/revisions` route and the assignee-edit permission were
+  removed).
 - `src/app/actions.ts` — `refreshBoard` + `signOutAction` server actions.
 - `src/components/board.tsx` — **client component**, all interactivity: filter,
-  sort, optimistic revisions `+/−`, refresh + sign-out buttons. UI text lives here.
+  sort, refresh + sign-out buttons. Revisions render read-only (the number, or
+  "N/A" with no Figma link). UI text lives here.
 - **Auth (Auth.js v5 / Credentials).** `src/auth.config.ts` is the edge-safe
   config (no providers/Prisma/bcrypt) imported by `src/proxy.ts` — it holds the
   `authorized` gate **and** the JWT/session callbacks (both pure, so the proxy
@@ -94,7 +108,7 @@ before running the app or Prisma migrations.**
   and Next only recognizes a **default** function export, not a destructured
   `export const { auth: middleware }`). It's compiled at server **startup**, so
   restart `pnpm dev` after touching it — HMR won't reload it. Its `matcher`
-  protects the board *and* `/api/revisions` while excluding `/api/auth`.
+  protects the board (a catch-all) while excluding `/api/auth`.
 - **`trustHost: true` is set in `auth.config.ts`** — without it Auth.js throws
   `UntrustedHost` on any non-Vercel host (incl. `pnpm start` locally).
 - **The `/admin` proxy gate is not enough** — always re-check `role === "ADMIN"`
@@ -117,8 +131,15 @@ before running the app or Prisma migrations.**
   `ahmed validation`). Bucketing + badge mapping key off these exact lowercased
   names in `status.ts` / `board.tsx` — don't rename the keys.
 - **Domain term is "revisions"** (formerly "retours"). DB model `Revision`,
-  route `/api/revisions`, type `TaskWithRevisions`. Note the identifier is
-  `revisions` not `return`/`returns` (the latter is a JS reserved word).
+  cache layer `src/lib/revisions.ts`, type `TaskWithRevisions`. Note the
+  identifier is `revisions` not `return`/`returns` (the latter is a JS reserved
+  word).
+- **Revisions cache-refresh runs in `after` during page render.** Because the
+  board page is statically prerendered, the hourly Figma refresh piggybacks on
+  ISR revalidation (~every 60s the component re-runs, `after` refreshes any stale
+  entry). There's no cron. At **build** time `after` also fires but is truncated
+  when the build worker exits, so the cache only *partially* warms during
+  `pnpm build` — it fills in over the first few revalidations at runtime.
 - **UI is English, dark-mode only.** Theme tokens (incl. status colors
   `--progress`/`--wait`/`--done`/`--hold`/`--warn`) are in `src/app/globals.css`;
   `dark` is hard-coded on `<html>` in `layout.tsx`.
@@ -132,6 +153,9 @@ before running the app or Prisma migrations.**
 
 `pnpm build` type-checks the whole project (Postgres must be running, since `/`
 prerenders and reads the DB). For a runtime smoke test, the board should render
-~71 cards from the live list, and `POST /api/revisions {id,count}` should return
-`{id,count}` and persist to the `Revision` table (inspect with
-`pnpm prisma studio`).
+~71 cards from the live list; tasks with a Figma link show a numeric revisions
+count (Figma "Version N" frames − 1), tasks without show "N/A". After a load or
+two the `Revision` table should hold a cached row (`taskId`, `figmaKey`, `count`,
+`updatedAt`) per Figma-linked task — inspect with `pnpm prisma studio`. Needs
+`FIGMA_TOKEN` set. (Figma rate-limits file reads, so a full first warm can take a
+few revalidation cycles.)

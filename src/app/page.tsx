@@ -14,10 +14,10 @@ export default async function Page() {
     throw err;
   }
 
-  const revisions = await getRevisionsMap();
+  const revisions = await getRevisionsMap(tasks);
   const enriched: TaskWithRevisions[] = tasks.map((t) => ({
     ...t,
-    revisions: revisions[t.id] ?? 0,
+    revisions: revisions[t.id] ?? null,
   }));
 
   return <Board tasks={enriched} now={Date.now()} />;

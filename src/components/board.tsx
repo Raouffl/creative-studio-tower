@@ -8,8 +8,6 @@ import {
   ArrowUpNarrowWide,
   ExternalLink,
   LogOut,
-  Minus,
-  Plus,
   RefreshCw,
   Shield,
   UserCog,
@@ -52,10 +50,10 @@ export function Board({
   const router = useRouter();
   const { data: session } = useSession();
   const isAdmin = session?.user?.role === "ADMIN";
-  const myEmail = session?.user?.email?.trim().toLowerCase() ?? null;
   const [isRefreshing, startRefresh] = useTransition();
-  const [revisions, setRevisions] = useState<Record<string, number>>(() =>
-    Object.fromEntries(tasks.map((t) => [t.id, t.revisions])),
+  const revisions = useMemo(
+    () => Object.fromEntries(tasks.map((t) => [t.id, t.revisions])),
+    [tasks],
   );
   const [assignee, setAssignee] = useState<string>("all");
   const [sort, setSort] = useState<SortKey>("oldest");
@@ -97,23 +95,12 @@ export function Board({
   const totals = useMemo(() => {
     const done = tasks.filter((t) => bucketOf(t) === "done").length;
     const waiting = tasks.filter((t) => bucketOf(t) === "wait").length;
-    const totalRevisions = Object.values(revisions).reduce((s, n) => s + n, 0);
+    const totalRevisions = Object.values(revisions).reduce<number>(
+      (s, n) => s + (n ?? 0),
+      0,
+    );
     return { total: tasks.length, done, waiting, totalRevisions };
   }, [tasks, revisions]);
-
-  async function bump(id: string, dir: 1 | -1) {
-    const next = Math.max(0, (revisions[id] ?? 0) + dir);
-    setRevisions((prev) => ({ ...prev, [id]: next }));
-    try {
-      await fetch("/api/revisions", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ id, count: next }),
-      });
-    } catch {
-      // Keep the optimistic value; a refresh will reconcile from the DB.
-    }
-  }
 
   function onRefresh() {
     startRefresh(async () => {
@@ -240,17 +227,7 @@ export function Board({
               </p>
             ) : (
               columns[col.key].map((t) => (
-                <TaskCard
-                  key={t.id}
-                  task={t}
-                  revisions={revisions[t.id] ?? 0}
-                  now={now}
-                  onBump={bump}
-                  canEdit={
-                    isAdmin ||
-                    (!!myEmail && t.assigneeEmails.includes(myEmail))
-                  }
-                />
+                <TaskCard key={t.id} task={t} revisions={t.revisions} now={now} />
               ))
             )}
           </section>
@@ -306,14 +283,10 @@ function TaskCard({
   task,
   revisions,
   now,
-  onBump,
-  canEdit,
 }: {
   task: TaskWithRevisions;
-  revisions: number;
+  revisions: number | null;
   now: number;
-  onBump: (id: string, dir: 1 | -1) => void;
-  canEdit: boolean;
 }) {
   const info = elapsedInfo(task, now);
   const flagged = task.status.toLowerCase() === "waiting for pm feedback";
@@ -388,39 +361,30 @@ function TaskCard({
             </Badge>
           ) : null}
         </div>
-        <div className="flex items-center gap-1.5 font-mono">
+        <div
+          className="flex items-center gap-1.5 font-mono"
+          title={
+            revisions === null
+              ? "No Figma link — revisions unavailable"
+              : "Auto-derived from Figma versions (versions − 1)"
+          }
+        >
           <span className="text-muted-foreground">revisions</span>
-          <button
-            onClick={() => onBump(task.id, -1)}
-            disabled={!canEdit}
-            aria-label="Decrease revisions"
-            title={
-              canEdit ? undefined : "Only assignees can edit revisions"
-            }
-            className="flex size-[18px] items-center justify-center rounded border border-border bg-background text-muted-foreground hover:border-progress hover:text-foreground disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:border-border disabled:hover:text-muted-foreground"
-          >
-            <Minus className="size-3" />
-          </button>
-          <span
-            className={cn(
-              "min-w-3.5 text-center",
-              revisions >= 5 && "font-bold text-warn",
-              revisions >= 3 && revisions < 5 && "font-bold text-wait",
-            )}
-          >
-            {revisions}
-          </span>
-          <button
-            onClick={() => onBump(task.id, 1)}
-            disabled={!canEdit}
-            aria-label="Increase revisions"
-            title={
-              canEdit ? undefined : "Only assignees can edit revisions"
-            }
-            className="flex size-[18px] items-center justify-center rounded border border-border bg-background text-muted-foreground hover:border-progress hover:text-foreground disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:border-border disabled:hover:text-muted-foreground"
-          >
-            <Plus className="size-3" />
-          </button>
+          {revisions === null ? (
+            <span className="min-w-3.5 text-center text-muted-foreground">
+              N/A
+            </span>
+          ) : (
+            <span
+              className={cn(
+                "min-w-3.5 text-center",
+                revisions >= 5 && "font-bold text-warn",
+                revisions >= 3 && revisions < 5 && "font-bold text-wait",
+              )}
+            >
+              {revisions}
+            </span>
+          )}
         </div>
       </div>
     </div>
@@ -487,9 +451,11 @@ function Footnote() {
       API. For active tasks, the elapsed time runs from creation to today. For
       completed tasks, it runs from creation to close when the creation date is
       provided, otherwise the close date is shown. The{" "}
-      <b className="text-foreground">&ldquo;revisions&rdquo;</b> counter is a
-      manual, editable (+/−) counter saved server-side (Postgres via Prisma) —
-      increment it each time a PM sends a task back.
+      <b className="text-foreground">&ldquo;revisions&rdquo;</b> counter is
+      derived automatically from the task&apos;s Figma file — the number of
+      &ldquo;Version N&rdquo; frames minus one — cached server-side and
+      refreshed at most once an hour. Tasks without a Figma link show{" "}
+      <b className="text-foreground">N/A</b>.
     </div>
   );
 }
